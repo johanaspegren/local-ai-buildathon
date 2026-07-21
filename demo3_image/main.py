@@ -13,6 +13,7 @@ Run: python main.py
 """
 
 import json
+import time
 import ollama
 
 # gemma1.5 (MedGemma) is vision-capable and is the target model for the
@@ -51,13 +52,17 @@ Respond with JSON only."""
     # on the first bad response.
     attempts = 3
     for attempt in range(1, attempts + 1):
-        response = ollama.chat(
+        print(f"(attempt {attempt}/{attempts})")
+        start = time.time()
+
+        stream = ollama.chat(
             model=MODEL,
             format="json",
             # "Thinking" models (e.g. qwen3-vl) write a long internal
             # reasoning trace before the actual JSON answer, so this call
             # needs a generous token budget to reach that answer at all.
             options={"num_predict": 4096},
+            stream=True,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {
@@ -67,12 +72,48 @@ Respond with JSON only."""
                 },
             ],
         )
+
+        # Without streaming, this call looks frozen while the model
+        # "thinks" - qwen3-vl's internal reasoning trace can run for a
+        # while before any JSON appears at all. Streaming lets us print
+        # *something* the whole time instead of waiting silently.
+        thinking_started = False
+        content_started = False
+        content = ""
+        last_dot_time = 0.0
+        for chunk in stream:
+            message = chunk["message"]
+            if message.get("thinking"):
+                if not thinking_started:
+                    print("  thinking", end="", flush=True)
+                    thinking_started = True
+                # One dot per token would print hundreds of them for a
+                # long reasoning trace - a dot roughly once a second is
+                # still an honest "it's alive" signal without the noise.
+                if time.time() - last_dot_time > 1:
+                    print(".", end="", flush=True)
+                    last_dot_time = time.time()
+            if message.get("content"):
+                if not content_started:
+                    print(f"\n  writing answer ({time.time() - start:.1f}s in)...")
+                    content_started = True
+                content += message["content"]
+
+        print(f"  done in {time.time() - start:.1f}s")
+
+        # json.loads succeeding is not the same as getting a useful
+        # answer - "{}" is perfectly valid JSON and also perfectly
+        # useless. Treat an empty/near-empty result the same as a parse
+        # failure: worth retrying, not worth silently accepting.
         try:
-            return json.loads(response["message"]["content"])
-        except json.JSONDecodeError:
+            info = json.loads(content)
+            if not info or not info.get("visible_observations"):
+                raise ValueError("response was valid JSON but had no real content")
+            return info
+        except (json.JSONDecodeError, ValueError) as error:
             if attempt == attempts:
                 raise
-            print(f"(got malformed JSON, retrying... attempt {attempt}/{attempts})")
+            print(f"(got {error}, retrying... attempt {attempt}/{attempts})")
 
 
 def generate_summary(info: dict) -> str:

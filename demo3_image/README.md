@@ -59,6 +59,24 @@ MedGemma is not a "thinking" model, so you likely won't need as large a
 token budget or as many retries once you switch to `gemma1.5:latest` on
 the Pi - but the retry pattern is good practice to keep regardless.
 
+## Why this streams instead of just waiting
+
+A single non-streaming call here can look completely frozen for a minute
+or more - all of that "thinking" trace happens before anything is
+returned at all, so there's nothing to show until the model is done.
+`extract_observations` uses `stream=True` instead, so it can print
+something the whole time:
+
+- a `.` roughly once a second while the model is in its thinking phase
+  (throttled - printing one per token would be hundreds of dots for a
+  long trace, which is just noise)
+- a note the moment actual JSON content starts arriving
+- how long the whole attempt took, once it's done
+
+This doesn't make the model faster - a "thinking" model on modest
+hardware can still take a minute or more per attempt - but it turns
+"is this stuck?" into "I can see it's still working."
+
 ## Things to try next (exercises)
 
 - Swap in a real photo (skin, wound, lab report) and see how the fields change.
