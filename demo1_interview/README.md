@@ -7,8 +7,8 @@ format. This is the starting point for the buildathon - the goal is to show
 ## Setup
 
 ```bash
-python3 -m venv venv
-./venv/bin/pip install -r requirements.txt
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements.txt
 ollama pull gemma4:e2b   # if not already on this machine
 ```
 
@@ -20,7 +20,7 @@ to use the medical-tuned model instead.
 ## Run
 
 ```bash
-python main.py
+./.venv/bin/python3 main.py
 ```
 
 ## How it works

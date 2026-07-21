@@ -20,7 +20,7 @@ import ollama
 # vision-capable model you have (e.g. "qwen3-vl:2b") to test the pipeline.
 MODEL = "qwen3-vl:2b"
 
-IMAGE_PATH = "sample_ct_image.png"
+IMAGE_PATH = "images/sample_ct_image.png"
 
 
 def extract_observations(image_path: str) -> dict:
