@@ -1,0 +1,20 @@
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Python cache/artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
