@@ -1,8 +1,8 @@
 # Demo 1: Patient interview -> structured journal
 
-A minimal, readable example of a three-step LLM pipeline: translate, extract,
-format. This is the starting point for the buildathon - the goal is to show
-*how* to build this, not to be a polished product.
+A minimal, readable example of a four-step pipeline: transcribe, translate,
+extract, format. This is the starting point for the buildathon - the goal
+is to show *how* to build this, not to be a polished product.
 
 ## Setup
 
@@ -17,6 +17,10 @@ ollama pull gemma4:e2b   # if not already on this machine
 `gemma1.5:latest` is available, change `MODEL` back to `"gemma1.5:latest"`
 to use the medical-tuned model instead.
 
+The first run downloads a `faster-whisper` speech-to-text model
+(`WHISPER_MODEL_SIZE = "small"`) from Hugging Face - this needs internet
+access once, then it's cached locally.
+
 ## Run
 
 ```bash
@@ -25,6 +29,12 @@ to use the medical-tuned model instead.
 
 ## How it works
 
+0. **`transcribe_audio`** - turns spoken audio into text using
+   `faster-whisper`, a lighter offline-friendly alternative to the
+   original OpenAI Whisper (no torch dependency, which matters on a
+   Raspberry Pi). By default it auto-detects the spoken language - that's
+   the multilingual part of this demo. Skip this step entirely and call
+   `run_pipeline(text)` directly if you already have typed text.
 1. **`translate_to_english`** - one Ollama call, one job: translate the
    patient's own words. Kept separate so the original and the translation
    can always be shown side by side (translation can lose nuance).
@@ -41,11 +51,29 @@ to use the medical-tuned model instead.
    again. A good rule of thumb: only call the LLM for the part of the task
    that actually needs language understanding.
 
+## Two real quirks you'll hit (and why they matter)
+
+- **`format="json"` constrains valid JSON, not the exact shape.** In
+  testing, `chief_complaint` (documented as a string) sometimes came back
+  as a list instead. `_as_text()` coerces defensively rather than trying
+  to prompt this away entirely - worth knowing generally when working with
+  structured LLM output, not just here.
+- **`audio/sample_swahili.wav` is a synthetic voice** (generated with
+  `espeak-ng`, since no real recording was available while building this).
+  It's robotic enough that Whisper's language auto-detection gets it
+  wrong, so `language="sw"` is forced when running the bundled sample.
+  With a real recording of a real speaker, drop the `language` argument in
+  `run_pipeline_from_audio` and let it auto-detect - that's the actual
+  point of this step.
+
 ## Things to try next (exercises)
 
-- Add a second sample input in English and confirm the translation step
-  is a no-op (or skip translation entirely when the text is already
-  English - how would you detect that?).
+- Record yourself (or a Swahili speaker) saying a symptom sentence, drop
+  the file into `audio/`, and run the pipeline on it with no `language`
+  argument - see whether auto-detection gets it right on real speech.
+- Add a second sample input in English text (skip audio, use
+  `run_pipeline(text)` directly) and confirm the translation step is a
+  no-op.
 - Print how long each step takes (`time.time()` before/after each call).
   On a Raspberry Pi 5 this will be the first place you feel the model's
   real-world speed.
