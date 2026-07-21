@@ -52,6 +52,46 @@ sample document - swap in your own guideline PDFs by changing
    is what keeps a RAG answer grounded instead of the model just
    answering from its own training data.
 
+## Speed: logging, streaming, and keeping both models loaded
+
+This demo uses two different models back to back - an embedding model
+(`nomic-embed-text`) and a chat model (`gemma4:e2b`, or `gemma1.5` on the
+Pi). Three things matter for making that feel reasonably fast, especially
+on constrained hardware:
+
+1. **Progress logging.** `build_index` prints when each stage starts and
+   how long it took, and `embed_chunks` prints after every batch. Without
+   this, a slow embedding pass looks identical to a hung program.
+2. **Streaming the answer.** `answer_question` uses `stream=True` and
+   prints each piece of the response as it arrives, instead of waiting
+   silently for the full answer. This doesn't make generation faster, but
+   it's the difference between watching an answer get written and staring
+   at a blank terminal.
+3. **Keeping models loaded (the big one).** By default, Ollama may only
+   keep one model resident in memory at a time. Since this demo calls the
+   embedding model, then the chat model, then the embedding model again
+   (for every question), that default can force Ollama to unload one
+   model and reload the other on almost every call - and a reload can
+   easily cost more time than the actual inference, especially on a Pi.
+   Two things address this:
+   - `keep_alive="30m"` is passed on every `ollama.embed`/`ollama.chat`
+     call in this code, which tells Ollama not to unload that model for a
+     while after use.
+   - That alone isn't enough if the *server* is only willing to hold one
+     model resident regardless. Set `OLLAMA_MAX_LOADED_MODELS=2` (or
+     higher) as an environment variable for the Ollama server process
+     itself, so it's willing to keep both models loaded at once instead
+     of swapping between them. On macOS this typically means
+     `launchctl setenv OLLAMA_MAX_LOADED_MODELS 2` and restarting Ollama;
+     on the Pi (if Ollama runs as a systemd service) it means adding
+     `Environment="OLLAMA_MAX_LOADED_MODELS=2"` to the service's config
+     and restarting it.
+
+   Check RAM headroom before raising this on the Pi 5 (8GB): both models
+   need to fit in memory *at the same time* now, not one at a time.
+   `nomic-embed-text` is small (~274MB), so this is usually a safe trade,
+   but confirm with `ollama ps` while both are loaded rather than assuming.
+
 ## Things to try next (exercises)
 
 - Ask a question the document doesn't answer (e.g. about a topic outside

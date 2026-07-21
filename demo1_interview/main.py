@@ -23,7 +23,7 @@ MODEL = "gemma4:e2b"
 # you may want to try "base" or "tiny" first and see what speed you get.
 WHISPER_MODEL_SIZE = "small"
 
-SAMPLE_AUDIO_PATH = "audio/sample_swahili.wav"
+SAMPLE_AUDIO_PATH = "audio/swahili-headache-fever.m4a"
 
 # Example patient statement in Swahili, as typed text - useful for testing
 # steps 1-3 without needing an audio file at all.
@@ -194,8 +194,10 @@ if __name__ == "__main__":
     # on their own without any audio, use run_pipeline(text) with one of
     # the strings in SAMPLE_INPUTS instead.
     #
-    # language="sw" is forced here because the bundled sample audio is a
-    # synthetic (robotic) text-to-speech voice that confuses Whisper's
-    # language auto-detection. With a real recording of a real speaker,
-    # drop the language argument and let it auto-detect.
+    # language="sw" is forced here because on a short, single-sentence
+    # clip Whisper's language auto-detection can guess wrong even when
+    # the speech itself is real and clear (it did, in testing - low
+    # confidence, wrong language). Auto-detection tends to do better on
+    # longer clips with more speech to work with. Try dropping the
+    # language argument on a longer recording to see auto-detect in action.
     run_pipeline_from_audio(SAMPLE_AUDIO_PATH, language="sw")

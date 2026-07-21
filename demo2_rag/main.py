@@ -17,6 +17,8 @@ cosine similarity are simple, easy to understand, and fast enough.
 Run: python main.py
 """
 
+import time
+
 import numpy as np
 import ollama
 from pypdf import PdfReader
@@ -31,6 +33,19 @@ DOCUMENT_PATH = "documents/public_health_act.pdf"
 # little overlap are enough to demonstrate the retrieval pattern.
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
+
+# Embed in batches rather than one huge call, so progress is visible and
+# any single request stays a reasonable size.
+EMBED_BATCH_SIZE = 32
+
+# Tells Ollama to keep a model loaded in memory for this long after a
+# call, instead of unloading it right away. Both models used here
+# (EMBED_MODEL and CHAT_MODEL) get called repeatedly in the same run, and
+# without this, Ollama can swap one model out to load the other between
+# calls - which on constrained hardware (like a Pi 5) can cost far more
+# time than the actual inference. See the README for the server-side
+# setting (OLLAMA_MAX_LOADED_MODELS) that avoids this swapping entirely.
+KEEP_ALIVE = "30m"
 
 TOP_K = 3
 
@@ -73,12 +88,22 @@ def chunk_pages(pages: list[dict]) -> list[dict]:
 def embed_chunks(chunks: list[dict]) -> list[dict]:
     """Step 2: attach an embedding vector to every chunk.
 
-    One batched Ollama call embeds all chunks at once instead of one call
-    per chunk - much faster, and the API supports it directly.
+    Chunks are embedded in batches (not one call per chunk, and not one
+    giant call for everything) so progress is visible and each request
+    stays a reasonable size.
     """
-    response = ollama.embed(model=EMBED_MODEL, input=[c["text"] for c in chunks])
-    for chunk, embedding in zip(chunks, response["embeddings"]):
-        chunk["embedding"] = np.array(embedding)
+    start = time.time()
+    for batch_start in range(0, len(chunks), EMBED_BATCH_SIZE):
+        batch = chunks[batch_start : batch_start + EMBED_BATCH_SIZE]
+        response = ollama.embed(
+            model=EMBED_MODEL,
+            input=[c["text"] for c in batch],
+            keep_alive=KEEP_ALIVE,
+        )
+        for chunk, embedding in zip(batch, response["embeddings"]):
+            chunk["embedding"] = np.array(embedding)
+        done = batch_start + len(batch)
+        print(f"  embedded {done}/{len(chunks)} chunks ({time.time() - start:.1f}s elapsed)")
     return chunks
 
 
@@ -86,9 +111,21 @@ def build_index(path: str) -> list[dict]:
     """Steps 1-2 combined: turn a PDF into a list of embedded chunks.
 
     This only needs to run once per document, not once per question.
+    Each stage prints when it starts and how long it took, so a slow
+    run - especially on a Pi - still shows it's making progress rather
+    than looking stuck.
     """
+    print(f"Loading {path}...")
+    start = time.time()
     pages = load_document(path)
+    print(f"  loaded {len(pages)} pages ({time.time() - start:.1f}s)")
+
+    print("Splitting into chunks...")
+    start = time.time()
     chunks = chunk_pages(pages)
+    print(f"  {len(chunks)} chunks ({time.time() - start:.1f}s)")
+
+    print(f"Embedding {len(chunks)} chunks in batches of {EMBED_BATCH_SIZE}...")
     return embed_chunks(chunks)
 
 
@@ -100,7 +137,7 @@ def retrieve(question: str, chunks: list[dict], top_k: int = TOP_K) -> list[dict
     hundred chunks. A real vector database earns its place at a much
     larger scale than a workshop demo.
     """
-    response = ollama.embed(model=EMBED_MODEL, input=question)
+    response = ollama.embed(model=EMBED_MODEL, input=question, keep_alive=KEEP_ALIVE)
     question_vector = np.array(response["embeddings"][0])
 
     def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
@@ -116,6 +153,11 @@ def answer_question(question: str, retrieved_chunks: list[dict]) -> str:
 
     The system prompt is explicit about the two failure modes we want to
     avoid: making things up, and citing pages that weren't actually used.
+
+    stream=True prints each piece of the answer as it's generated instead
+    of waiting for the whole response. It doesn't make generation faster,
+    but on a slow model it's the difference between "is this even
+    working?" and watching an answer actually being written.
     """
     context = "\n\n".join(
         f"[Page {c['page']}]\n{c['text']}" for c in retrieved_chunks
@@ -128,14 +170,23 @@ plainly instead of guessing.
 Document excerpts:
 """ + context
 
-    response = ollama.chat(
+    stream = ollama.chat(
         model=CHAT_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": question},
         ],
+        keep_alive=KEEP_ALIVE,
+        stream=True,
     )
-    return response["message"]["content"].strip()
+
+    full_answer = ""
+    for chunk in stream:
+        piece = chunk["message"]["content"]
+        print(piece, end="", flush=True)
+        full_answer += piece
+    print()
+    return full_answer.strip()
 
 
 def run_pipeline(question: str, chunks: list[dict]) -> None:
@@ -149,9 +200,8 @@ def run_pipeline(question: str, chunks: list[dict]) -> None:
         preview = chunk["text"][:80].replace("\n", " ")
         print(f"  page {chunk['page']}: {preview}...")
 
-    answer = answer_question(question, retrieved)
     print("\nANSWER")
-    print(answer)
+    answer_question(question, retrieved)
     print("=" * 60)
 
 

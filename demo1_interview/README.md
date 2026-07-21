@@ -58,19 +58,32 @@ access once, then it's cached locally.
   as a list instead. `_as_text()` coerces defensively rather than trying
   to prompt this away entirely - worth knowing generally when working with
   structured LLM output, not just here.
-- **`audio/sample_swahili.wav` is a synthetic voice** (generated with
-  `espeak-ng`, since no real recording was available while building this).
-  It's robotic enough that Whisper's language auto-detection gets it
-  wrong, so `language="sw"` is forced when running the bundled sample.
-  With a real recording of a real speaker, drop the `language` argument in
-  `run_pipeline_from_audio` and let it auto-detect - that's the actual
-  point of this step.
+- **Whisper's language auto-detection can be unreliable on short clips,**
+  even with real, clear speech. `audio/swahili-headache-fever.m4a` is a
+  genuine recording, but auto-detect still guessed the wrong language at
+  low confidence (a single short sentence doesn't give it much to work
+  with) - so `language="sw"` is forced in `run_pipeline_from_audio` for
+  the bundled sample. Try it on a longer recording with the `language`
+  argument dropped to see auto-detect actually work.
+- **`WHISPER_MODEL_SIZE = "small"` has real accuracy limits on Swahili.**
+  In testing, it transcribed "na homa kali" (and severe fever) as "naho
+  makali", which silently dropped "fever" from every step downstream -
+  translation, extraction, and the final note all looked clean and
+  confident, with nothing signaling that the input had been misheard.
+  This is worth treating as a general lesson: a fluent, well-formatted
+  answer is not the same as an accurate one, and STT errors here are
+  invisible unless you have the original audio to check against. Trying
+  a larger Whisper model size (e.g. `"medium"`) is one lever if accuracy
+  matters more than speed for your use case.
 
 ## Things to try next (exercises)
 
-- Record yourself (or a Swahili speaker) saying a symptom sentence, drop
-  the file into `audio/`, and run the pipeline on it with no `language`
-  argument - see whether auto-detection gets it right on real speech.
+- Record a longer, clearer Swahili sentence and run the pipeline with no
+  `language` argument - see whether auto-detection does better with more
+  speech to work with.
+- Try `WHISPER_MODEL_SIZE = "medium"` on the same recording and compare
+  the transcription against `"small"` - does "na homa kali" transcribe
+  correctly this time?
 - Add a second sample input in English text (skip audio, use
   `run_pipeline(text)` directly) and confirm the translation step is a
   no-op.
