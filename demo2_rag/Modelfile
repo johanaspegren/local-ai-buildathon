@@ -1,0 +1,16 @@
+# Local alias: expose the HuggingFace-pulled MedGemma 1.5 4B GGUF under
+# the same model name we use on the Raspberry Pi, so main.py's
+# CHAT_MODEL = "medgemma1.5:latest" works identically on both machines.
+#
+# Register (once per machine, after `ollama pull hf.co/...` succeeds):
+#   ollama create medgemma1.5:latest -f Modelfile
+#
+# Verify:
+#   ollama list                # should show medgemma1.5:latest
+#   ollama run medgemma1.5:latest "hello"
+#
+# If Zscaler or the network blocks the hf.co pull, sideload instead:
+# download the .gguf file manually and replace the FROM line below with
+# `FROM ./medgemma-4b-it-Q4_K_M.gguf`, then run the same create command.
+
+FROM hf.co/unsloth/medgemma-4b-it-GGUF:Q4_K_M

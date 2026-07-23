@@ -1,0 +1,90 @@
+[
+  {
+    "question": "What was the Maternal Mortality Ratio (MMR) in sub-Saharan Africa in 2020, and what share of global maternal deaths did it represent?",
+    "answer": "In 2020, the Maternal Mortality Ratio (MMR) in sub-Saharan Africa was 536 per 100,000 live births, accounting for about 70% of all maternal deaths globally."
+  },
+  {
+    "question": "How does the lifetime risk of maternal death in sub-Saharan Africa compare to Western Europe?",
+    "answer": "The lifetime risk of maternal death in sub-Saharan Africa is 1 in 41, which is 268 times higher than in Western Europe."
+  },
+  {
+    "question": "What SDG 3 target is sub-Saharan Africa struggling to meet regarding births attended by skilled personnel?",
+    "answer": "SDG 3 aims to improve the proportion of births attended by skilled health personnel (doctor, nurse, midwife). In sub-Saharan Africa, this target is described as almost becoming unrealistic given current progress."
+  },
+  {
+    "question": "Why does limited healthcare financing contribute to poor maternal health outcomes in sub-Saharan Africa?",
+    "answer": "Health spending per capita in sub-Saharan Africa is significantly lower than in other regions (about $92 per person in 2021, versus $379 per person in the North Africa and Middle East region), which has led to a critical shortage of healthcare providers, particularly midwives and obstetricians."
+  },
+  {
+    "question": "What geographical and cultural barriers affect access to maternal healthcare in sub-Saharan Africa?",
+    "answer": "Geographical barriers, combined with traditional practices and cultural beliefs, moderate access to healthcare. Many women in sub-Saharan Africa live in remote, hard-to-reach, underserved areas, which makes it difficult to access healthcare services."
+  },
+  {
+    "question": "How does conflict and instability affect maternal health in sub-Saharan Africa?",
+    "answer": "Conflict and instability in some sub-Saharan African countries disrupt healthcare services, intensifying maternal health challenges and inducing poor healthcare infrastructure and a lack of basic equipment and supplies."
+  },
+  {
+    "question": "How do poverty and lack of female education affect maternal health risk in sub-Saharan Africa?",
+    "answer": "Poverty and inadequate female education contribute to high rates of teenage pregnancies and increase the risk of maternal complications."
+  },
+  {
+    "question": "How does HIV/AIDS prevalence relate to maternal mortality in sub-Saharan Africa?",
+    "answer": "The high prevalence of the HIV/AIDS epidemic has contributed to the high Maternal Mortality Ratio (MMR) in sub-Saharan Africa."
+  },
+  {
+    "question": "What role can technology play in reducing maternal mortality in sub-Saharan Africa?",
+    "answer": "Telemedicine, mobile health apps, and AI-powered diagnostic tools can enhance access to care, improve service quality, support remote monitoring, and empower women with health knowledge, offering significant prospects for reducing maternal mortality."
+  },
+  {
+    "question": "Why is emergency obstetric care (EmOC) important for reducing maternal mortality?",
+    "answer": "Strengthening emergency obstetric care is crucial for saving lives, particularly in rural areas. Ensuring access to skilled health personnel and timely interventions for complications like obstetric hemorrhage and hypertensive disorders can significantly improve maternal health outcomes."
+  },
+  {
+    "question": "How does women's empowerment help reduce maternal mortality?",
+    "answer": "Empowered women are more likely to access quality healthcare, including antenatal and postnatal care, and are better able to make informed decisions about their reproductive health, which leads to fewer complications during pregnancy and childbirth."
+  },
+  {
+    "question": "What role does male involvement play in improving maternal health outcomes?",
+    "answer": "Engaging men in antenatal care, childbirth, and postpartum support can improve women's access to services, empower them in decision-making, address gender inequalities, and lead to safer pregnancies and childbirths."
+  },
+  {
+    "question": "What is the global SDG target for maternal mortality by 2030?",
+    "answer": "SDG target 3.1 sets a goal of reducing the global maternal mortality ratio to less than 70 per 100,000 live births by 2030."
+  },
+  {
+    "question": "List all seven mitigation strategies for maternal health issues in sub-Saharan Africa described in the chapter.",
+    "answer": "The seven mitigation strategies are: (1) improve access to quality healthcare, (2) address social determinants of health, (3) empower women, (4) increase men's involvement, (5) promote community-based interventions, (6) strengthen data collection and monitoring, and (7) invest in research and development."
+  },
+  {
+    "question": "What does the 'improve access to quality healthcare' mitigation strategy involve?",
+    "answer": "It includes strengthening health systems, ensuring access to skilled birth attendants, and providing quality antenatal and postnatal care."
+  },
+  {
+    "question": "What does the 'address social determinants of health' mitigation strategy involve?",
+    "answer": "It involves addressing poverty, lack of education, and other social factors that impact women's health."
+  },
+  {
+    "question": "What does the 'promote community-based interventions' mitigation strategy involve?",
+    "answer": "Community health workers and other community-based programs play a vital role in reaching women in remote areas and providing essential services."
+  },
+  {
+    "question": "Why is strengthening data collection and monitoring a mitigation strategy for maternal health?",
+    "answer": "Accurate data is essential for tracking progress and identifying areas for improvement in maternal health outcomes."
+  },
+  {
+    "question": "According to reference 24, what topic did Perez-Mesa, Marrero, and Darias-Curvo study, and where and when was it published?",
+    "answer": "Reference [24] is Perez-Mesa D, Marrero GA, Darias-Curvo S, 'Child health inequality in Sub-Saharan Africa,' published in Economics and Human Biology, 2022;47:101176."
+  },
+  {
+    "question": "According to reference 25, what did the systematic review and meta-analysis examine, and where was it published?",
+    "answer": "Reference [25] (Asferie et al.) examined the effect of maternal HIV infection on birth outcomes among HIV-positive women in sub-Saharan Africa, in a systematic review and meta-analysis published in BMC Public Health, 2025;25(1):459."
+  },
+  {
+    "question": "What is the chapter's overall conclusion about reducing maternal mortality in sub-Saharan Africa?",
+    "answer": "Maternal mortality remains unacceptably high in sub-Saharan Africa due to complex factors, but progress requires increasing healthcare access, improving infrastructure (especially rural), training more midwives and obstetricians, promoting family planning, engaging communities on cultural barriers, and strengthening healthcare financing so women aren't blocked by financial hardship."
+  },
+  {
+    "question": "Who wrote this chapter and where was it published?",
+    "answer": "The chapter 'Maternal Health in Sub-Saharan Africa' was written by Betta Edu and published in 'Maternal and Child Health - A Holistic Approach to Equity, Nutrition, and Psychosocial Well-Being' (IntechOpen, 2025), open access under CC BY 4.0."
+  }
+]

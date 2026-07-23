@@ -1,0 +1,86 @@
+[
+  {
+    "question": "What is the first-line uterotonic drug for treating postpartum haemorrhage (PPH)?",
+    "answer": "Intravenous oxytocin is the recommended first-line uterotonic drug for the treatment of PPH."
+  },
+  {
+    "question": "If IV oxytocin is unavailable or bleeding doesn't respond to oxytocin, what does WHO recommend for treating PPH?",
+    "answer": "If intravenous oxytocin is unavailable, or if bleeding does not respond to oxytocin, WHO recommends intravenous ergometrine, an oxytocin-ergometrine fixed dose, or a prostaglandin drug (including sublingual misoprostol, 800 micrograms)."
+  },
+  {
+    "question": "What dose of sublingual misoprostol is used for treating PPH?",
+    "answer": "A sublingual misoprostol dose of 800 micrograms is considered an acceptable dose for the treatment of PPH."
+  },
+  {
+    "question": "Is misoprostol recommended in addition to oxytocin for treating PPH?",
+    "answer": "No. There is no added benefit to offering misoprostol simultaneously to women already receiving oxytocin for the treatment of PPH (adjunct misoprostol)."
+  },
+  {
+    "question": "What fluid type is recommended for intravenous resuscitation in women with PPH?",
+    "answer": "Isotonic crystalloids are recommended in preference to colloids for the intravenous fluid resuscitation of women with PPH."
+  },
+  {
+    "question": "Under what condition is tranexamic acid recommended for treating PPH?",
+    "answer": "Tranexamic acid is recommended for the treatment of PPH if oxytocin and other uterotonics fail to stop the bleeding, or if the bleeding is thought to be partly due to trauma."
+  },
+  {
+    "question": "What temporizing measures are recommended for PPH due to uterine atony when uterotonics have failed or are unavailable?",
+    "answer": "Temporizing measures for PPH due to uterine atony include intrauterine balloon tamponade, uterine artery embolization, bimanual uterine compression, external aortic compression, and non-pneumatic anti-shock garments, used until appropriate definitive care becomes available."
+  },
+  {
+    "question": "Is uterine packing recommended for treating PPH due to uterine atony?",
+    "answer": "No. The use of uterine packing is not recommended for the treatment of PPH due to uterine atony after vaginal birth."
+  },
+  {
+    "question": "What is recommended if the placenta is not expelled spontaneously?",
+    "answer": "If the placenta is not expelled spontaneously, additional oxytocin (10 IU, IV/IM) in combination with controlled cord traction is recommended."
+  },
+  {
+    "question": "When should umbilical cord clamping be performed at birth?",
+    "answer": "Late cord clamping, performed 1 to 3 minutes after birth, is recommended for all births while initiating simultaneous essential newborn care. Early cord clamping (less than 1 minute after birth) is not recommended unless the neonate is asphyxiated and needs to be moved immediately for resuscitation."
+  },
+  {
+    "question": "What dose of low-dose aspirin is recommended for preventing pre-eclampsia in high-risk women, and by when should it start?",
+    "answer": "Low-dose acetylsalicylic acid (aspirin, 75 mg/day) is recommended for the prevention of pre-eclampsia in women at high risk of developing the condition, and should be initiated before 20 weeks of pregnancy."
+  },
+  {
+    "question": "What risk factors classify a woman as high-risk for pre-eclampsia?",
+    "answer": "Women are considered at high risk of developing pre-eclampsia if they have one or more of the following: previous pre-eclampsia, diabetes, chronic hypertension, renal disease, autoimmune disease, or multiple pregnancies."
+  },
+  {
+    "question": "Is bedrest recommended to prevent pre-eclampsia?",
+    "answer": "No. Advice to rest at home and strict bedrest are not recommended as interventions for the primary prevention of pre-eclampsia and hypertensive disorders of pregnancy."
+  },
+  {
+    "question": "Is restricting dietary salt intake recommended to prevent pre-eclampsia?",
+    "answer": "No. Restriction of dietary salt intake during pregnancy is not recommended for preventing the development of pre-eclampsia and its complications."
+  },
+  {
+    "question": "Are diuretics recommended to prevent pre-eclampsia?",
+    "answer": "No. Diuretics, particularly thiazides, are not recommended for the prevention of pre-eclampsia and its complications."
+  },
+  {
+    "question": "What drug is preferred over other anticonvulsants for preventing and treating eclampsia?",
+    "answer": "Magnesium sulfate is recommended, in preference to other anticonvulsants, both for the prevention of eclampsia in women with severe pre-eclampsia and for the treatment of women with eclampsia."
+  },
+  {
+    "question": "What should be done if the full magnesium sulfate regimen cannot be administered?",
+    "answer": "In settings where it is not possible to administer the full magnesium sulfate regimen, a magnesium sulfate loading dose followed by immediate transfer to a higher-level health-care facility is recommended for women with severe pre-eclampsia and eclampsia."
+  },
+  {
+    "question": "In women with severe pre-eclampsia at term, what delivery policy does WHO recommend?",
+    "answer": "A policy of early delivery is recommended for women with severe pre-eclampsia at term."
+  },
+  {
+    "question": "In women with mild pre-eclampsia or gestational hypertension at term, what is recommended?",
+    "answer": "Induction of labour is recommended for women with mild pre-eclampsia or gestational hypertension at term."
+  },
+  {
+    "question": "Should antihypertensive treatment continue after birth in women treated during pregnancy?",
+    "answer": "Yes. In women treated with antihypertensive drugs antenatally, continued antihypertensive treatment postpartum is recommended, and treatment with antihypertensive drugs is also recommended for severe postpartum hypertension."
+  },
+  {
+    "question": "What antihypertensive drugs are considered reasonable options for non-severe hypertension in pregnancy?",
+    "answer": "Oral alpha-agonist (methyldopa) and beta-blockers are considered effective treatment options for non-severe hypertension during pregnancy. Methyldopa has the fewest safety concerns and is widely available in many countries."
+  }
+]

@@ -18,3 +18,6 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# RAG demo run logs
+demo2_rag/logs/
