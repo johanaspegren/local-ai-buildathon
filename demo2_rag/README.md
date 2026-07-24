@@ -152,10 +152,9 @@ Every interaction is also appended to a timestamped JSONL log under
 `logs/`, self-describing header first, so any run can be replayed or
 compared later.
 
-## Run: the chunking demo (naive vs curated, side by side)
+## Run: the chunking failure demo (naive vs curated, side by side)
 
-Run the same test questions against the same source document twice,
-changing only the corpus:
+Run the same test questions against the same source document twice, changing only the corpus. The aim here is to show how the chunking affects the retreived test and thus the LLMs response
 
 ```bash
 # 1. Naive chunking of the raw PDF - fixed 500 chars, no overlap.
@@ -189,8 +188,7 @@ the retrieval layer from generation.
 The two trap keywords, verified against the live chunk output:
 
 - **`intrauterine balloon tamponade`** (Q2) - the WHO device name.
-  Never appears intact in any single 500-char naive chunk. `balloon
-  tamponade` alone would survive; the full clinical term is what
+  Never appears intact in any single 500-char naive chunk. `balloon tamponade` alone would survive; the full clinical term is what
   breaks. Curated Q&A #7 has it intact.
 - **`controlled cord traction`** (Q5) - split at a page-4 chunk
   boundary as `...c` | `ontrolled cord traction...`, so the intact
@@ -215,8 +213,7 @@ produces:
   scorer PASSes because the words are technically present.
 - Invented bullets from chunk fragments (`Surgical intervention (surg)`
   promoted to a recommendation from a mid-word cut of `surgical`).
-- Contraindicated interventions listed as if recommended (`uterine
-  packing`, which WHO specifically recommends *against*).
+- Contraindicated interventions listed as if recommended (`uterine packing`, which WHO specifically recommends *against*).
 
 The intended reading:
 
@@ -258,7 +255,6 @@ the terminal after indexing (before dropping into the REPL or batch):
 ./.venv/bin/python3 main.py \
   --qa documents/qa_who_pph_preeclampsia_excerpt.json --show-chunks
 ```
-
 
 ## Failure modes seen here
 
