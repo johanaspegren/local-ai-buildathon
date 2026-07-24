@@ -57,17 +57,71 @@ from pypdf import PdfReader
 LOG_DIR = Path("logs")
 LOG_FILE: Path | None = None  # set in main once we know the run mode
 
-EMBED_MODEL = "nomic-embed-text"
-CHAT_MODEL = "medgemma1.5:latest"
+EMBED_MODEL = "nomic-embed-text"  # this is a small, fast embedding model that works well for short chunks of text
+CHAT_MODEL = "medgemma1.5:latest" # Googles MedGemma model, fine-tuned on medical text. 
 
 DEFAULT_DOC = "documents/who_pph_preeclampsia_excerpt.pdf"
 
-# Sensible defaults for the "just show me a working RAG" run. The teaching
-# demo overrides these on the CLI (chunk_size=500, overlap=0) to reproduce
-# the naive-chunking failures documented in test_questions3.py.
+# --- Chunk size ---
+# How many characters land in each chunk of a PDF corpus. This is the
+# single biggest lever on retrieval quality for naive fixed-size chunking.
+#
+# Bigger chunks:
+#   + more surrounding context per chunk, so a single retrieved chunk is
+#     more likely to contain the *whole* sentence/answer/list the user
+#     is asking about (fewer decapitated "the recommendation is X" with
+#     no antecedent, which was the trap in the oxytocin-ergometrine
+#     failure mode).
+#   - more prompt tokens per retrieved chunk, so prompt-eval time goes
+#     up linearly. On a Pi with a 4B model this is usually the wall-time
+#     dominator; doubling chunk_size roughly doubles the prompt-eval cost.
+#   - retrieval becomes less precise: an embedding of a big chunk is an
+#     average over many topics, so cosine similarity gets fuzzier.
+#
+# Smaller chunks:
+#   + tighter retrieval (each chunk is about one thing).
+#   - more chunks per document -> more embeddings to compute at index
+#     time, and more chance a needed sentence gets cut in half.
+#
+# The teaching demo overrides this on the CLI (chunk_size=500, overlap=0)
+# to reproduce the naive-chunking failures documented in test_questions3.py.
 DEFAULT_CHUNK_SIZE = 800
+
+# --- Chunk overlap ---
+# How many characters at the end of one chunk are repeated at the start
+# of the next. This is the *cheap fix* for mid-word/mid-sentence splits.
+#
+# With overlap=0 (the teaching-demo setting), a word or phrase that lands
+# on a chunk boundary is destroyed - "oxytocin-ergometrine" becomes
+# "oxytoc" at the tail of one chunk and "in-ergometrine" at the head of
+# the next, and no single chunk contains the intact phrase.
+#
+# With overlap>0, every boundary appears twice - once at the end of one
+# chunk and once at the start of the next - so a phrase split by the
+# first cut is preserved intact by the second. Overlap of 100-200 chars
+# is usually enough to cover any single sentence at these chunk sizes.
+#
+# The cost: overlap duplicates text, so the total token count of the
+# corpus grows roughly by overlap/chunk_size. With chunk_size=800 and
+# overlap=100 that's ~12% more embeddings to compute at index time and
+# ~12% more chunks to scan per query. Modest, and seems worth it. But 
+# does not solve all retrieval issues.
+#
+# Overlap alone doesn't fix every naive-chunking failure though:
+# retrieval can still miss items when a list spans more chunks than
+# TOP_K, and semantic-decapitation happens above the sentence level too
+# (a "the recommendation is X" whose subject is a heading two paragraphs
+# earlier can't be rescued by 100 chars of overlap). Curation still wins.
 DEFAULT_CHUNK_OVERLAP = 100
 
+# --- Embedding batch size ---
+# How many chunks are sent to the embedding model in one Ollama call at
+# index time. Bigger batches are more efficient (less per-call overhead),
+# but each request also takes longer, so progress logging becomes coarser
+# and a single failure loses more work. 32 is a comfortable middle for a
+# Pi - small enough that each batch takes only a couple of seconds so the
+# "embedded N/M chunks" line updates often, big enough that per-call
+# overhead is negligible.
 EMBED_BATCH_SIZE = 32
 
 # Tells Ollama to keep a model loaded in memory for this long after a
@@ -79,7 +133,38 @@ EMBED_BATCH_SIZE = 32
 # setting (OLLAMA_MAX_LOADED_MODELS) that avoids this swapping entirely.
 KEEP_ALIVE = "30m"
 
+# --- Retrieval top-k ---
+# How many chunks retrieval hands to the LLM as context for each
+# question. The LLM reads *all* of them as source material - it doesn't
+# choose one, it synthesises across all K.
+#
+# Bigger TOP_K:
+#   + more coverage - useful when the answer spans multiple chunks (e.g.
+#     a bulleted list that got split across chunks by naive chunking).
+#   - more prompt tokens per question, linearly slower prompt-eval.
+#   - more irrelevant chunks in view of the model, which it has to
+#     reason around; sometimes triggers the reasoning-mode failure where
+#     the model overthinks and refuses to answer.
+#
+# Smaller TOP_K:
+#   + faster, tighter context.
+#   - more likely to miss the right chunk entirely if retrieval isn't
+#     confident (which is exactly the situation naive chunking creates -
+#     see the tightly-clustered similarity scores in the demo).
+#
+# 3 is the sweet spot for this demo: enough to catch a list that spans
+# 2-3 chunks, few enough to keep prompt-eval snappy on a Pi.
+#
+# (Not to be confused with the LLM sampling "top_k" - unrelated
+# parameter that controls next-token filtering during generation.)
 TOP_K = 3
+
+# Width of the divider bars printed around each Q&A block and the batch
+# results table. 78 is the traditional "80-column terminal minus a
+# little breathing room so a wrapped divider doesn't look like a bug."
+# Also happens to be exactly wide enough for the ID/Trap/Result/Question
+# columns in the batch scorer table.
+SEPARATOR_WIDTH = 78
 
 
 # ---------------------------------------------------------------------------
@@ -289,10 +374,13 @@ def answer_question(question: str, retrieved_chunks: list[dict]) -> tuple[str, d
     The system prompt is explicit about the two failure modes we want to
     avoid: making things up, and citing sources that weren't actually
     used. stream=True prints each piece of the answer as it's generated
-    instead of waiting for the whole response.
+    instead of waiting for the whole response. Very important when running
+    on a Pi with a 4B model - the answer can take 10-15s to generate or more , and
+    streaming makes it feel somewhat interactive instead of like the demo is hung.
 
     Returns (answer_text, timings). The final streamed message from
-    Ollama carries built-in timing counters we surface here:
+    Ollama carries built-in timing counters we surface here: (You 
+    probably want to do some benchmarking, so here is one way to do it.)
       - prompt_eval_count / prompt_eval_duration: how long the model
         spent digesting the prompt (system prompt + retrieved chunks +
         question) before generating anything. Dominated by prompt length
@@ -361,7 +449,7 @@ Document excerpts:
 
 
 def run_single_question(question: str, chunks: list[dict]) -> None:
-    print("=" * 60)
+    print("=" * SEPARATOR_WIDTH)
     print("QUESTION")
     print(question)
 
@@ -400,7 +488,7 @@ def run_single_question(question: str, chunks: list[dict]) -> None:
              f" ({gen_t['gen_tokens_per_s']:.1f} tok/s)" if gen_t['gen_tokens_per_s'] else ""))
     if gen_t["load_s"] > 0.05:
         print(f"  (model load: {gen_t['load_s']:.1f}s - first call after idle)")
-    print("=" * 60)
+    print("=" * SEPARATOR_WIDTH)
 
     log_interaction({
         "type": "single",
@@ -446,9 +534,9 @@ def run_question_suite(questions: list[dict], chunks: list[dict]) -> None:
     a table. No LLM calls - the point is to show whether the *right text*
     survives chunking, not whether the model can paraphrase it.
     """
-    print("\n" + "=" * 78)
+    print("\n" + "=" * SEPARATOR_WIDTH)
     print(f"{'ID':<4} {'Trap':<5} {'Result':<20} Question")
-    print("-" * 78)
+    print("-" * SEPARATOR_WIDTH)
     passes = 0
     total_retrieval_s = 0.0
     for q in questions:
@@ -474,11 +562,11 @@ def run_question_suite(questions: list[dict], chunks: list[dict]) -> None:
             ],
             "timings": retrieval_t,
         })
-    print("-" * 78)
+    print("-" * SEPARATOR_WIDTH)
     print(f"{passes}/{len(questions)} passed  "
           f"(retrieval total: {total_retrieval_s:.1f}s, "
           f"avg {total_retrieval_s / len(questions) * 1000:.0f}ms/q)")
-    print("=" * 78)
+    print("=" * SEPARATOR_WIDTH)
 
 
 # ---------------------------------------------------------------------------
@@ -512,15 +600,15 @@ def dump_chunks(chunks: list[dict]) -> None:
     audience can literally read the ...oxytoc | in-ergometrine... split
     in the wild, without having to trust the trap-question narration.
     """
-    print("=" * 78)
+    print("=" * SEPARATOR_WIDTH)
     print(f"ALL {len(chunks)} INDEXED CHUNKS")
-    print("=" * 78)
+    print("=" * SEPARATOR_WIDTH)
     for i, chunk in enumerate(chunks, 1):
         print(f"\n--- chunk {i}/{len(chunks)}  [{chunk['source']}] ---")
         body = chunk.get("display_text", chunk["text"])
         for line in body.splitlines() or [""]:
             print(f"  {line}")
-    print("\n" + "=" * 78 + "\n")
+    print("\n" + "=" * SEPARATOR_WIDTH + "\n")
 
 
 def interactive_loop(chunks: list[dict]) -> None:

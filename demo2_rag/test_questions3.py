@@ -1,12 +1,19 @@
 """
-DEMO 3 test questions -- same 8-question, 3-trap pattern as test_questions.py,
-but sourced from data/who_pph_preeclampsia_excerpt.pdf (WHO "Recommendations
-on maternal health," 2nd ed., 2023 -- Part B, Section 2.1 Haemorrhage and
-2.2.1 Hypertensive Disorders/pre-eclampsia & eclampsia).
+Test questions for the naive-vs-curated batch demo.
 
-Trap boundaries were found by actually running naive_fixed_size_chunks() on
-the extracted excerpt at chunk_size=500 and inspecting the output (see
-chunking.py) -- not guessed.
+8 questions over the WHO PPH + pre-eclampsia excerpt
+(documents/who_pph_preeclampsia_excerpt.pdf and its curated Q&A twin
+documents/qa_who_pph_preeclampsia_excerpt.json). Two of them are traps:
+their expected keyword is a WHO term that this codebase's per-page
+500-char/no-overlap chunker actually splits, verified by running the
+chunker and inspecting where the boundaries land. Naive should fail
+those two; curation preserves the intact term in a single Q&A pair so
+retrieval finds it every time.
+
+If you change the chunker (concatenate pages, add overlap, switch to a
+different chunk size), re-verify the traps - a "trap" is only a trap
+against a specific chunking implementation. To re-verify, run
+main.py --show-chunks and grep the output for the expected term.
 """
 
 QUESTIONS = [
@@ -18,10 +25,10 @@ QUESTIONS = [
     },
     {
         "id": "Q2",
-        "question": "If IV oxytocin is unavailable or bleeding doesn't respond to it, what fixed-dose combination drug does WHO recommend for treating PPH?",
-        "expected_keywords": ["oxytocin-ergometrine"],
+        "question": "What specific device does WHO recommend as a temporizing measure for PPH due to uterine atony when uterotonics have failed?",
+        "expected_keywords": ["intrauterine balloon tamponade"],
         "trap": True,
-        "note": "The compound drug name 'oxytocin-ergometrine' is split mid-word across a naive chunk boundary ('...oxytoc' | 'in-ergometrine...'), so it never appears intact in any one chunk.",
+        "note": "'intrauterine balloon tamponade' is the WHO device name and never appears intact in any single 500-char chunk of the per-page-chunked PDF (the compound gets split at every occurrence). 'balloon tamponade' alone would survive; the full clinical term is what breaks. Curated Q&A #7 has it intact.",
     },
     {
         "id": "Q3",
@@ -33,20 +40,14 @@ QUESTIONS = [
         "id": "Q4",
         "question": "Under what condition is tranexamic acid recommended for the treatment of PPH?",
         "expected_keywords": ["uterotonics fail"],
-        "trap": True,
-        "note": "'uterotonics' is split mid-word across a chunk boundary ('...other u' | 'terotonics fail...'), so the phrase 'uterotonics fail' never appears intact in any one chunk.",
+        "trap": False,
     },
     {
         "id": "Q5",
-        "question": "List the temporizing measures recommended for PPH due to uterine atony when uterotonics have failed or are unavailable.",
-        "expected_keywords": [
-            "balloon tamponade",
-            "bimanual uterine compression",
-            "external aortic compression",
-            "non-pneumatic anti-shock garments",
-        ],
+        "question": "What technique is recommended alongside additional oxytocin if the placenta is not expelled spontaneously?",
+        "expected_keywords": ["controlled cord traction"],
         "trap": True,
-        "note": "These 4 measures span 3 separate naive chunks; top-k retrieval only surfaces 2 of the 3 chunks, silently dropping at least one measure.",
+        "note": "'controlled cord traction' is split at a page-4 chunk boundary ('...c' | 'ontrolled cord traction...'), so the intact phrase never appears in any retrieved chunk. Curated Q&A #9 has it intact.",
     },
     {
         "id": "Q6",
