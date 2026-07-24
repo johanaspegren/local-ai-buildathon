@@ -23,3 +23,6 @@ __pycache__/
 demo2_rag/logs/
 
 Modelfile
+
+# Local model weights (too large for GitHub)
+demo1_interview/models/kiswahili-sahihi-ct2/model.bin

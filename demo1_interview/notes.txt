@@ -1,0 +1,62 @@
+
+
+============================================================
+(.venv) johanmullern-aspegren@M-L193CDXQJQ demo1_interview % ./.venv/bin/python3 main.py --text "Nina maumivu ya kichwa tangu jana. Pia nina homa na ninahisi kizunguzungu ninaposimama."
+MODEL = "gemma4:e2b"
+============================================================
+PATIENT STATEMENT
+Nina maumivu ya kichwa tangu jana. Pia nina homa na ninahisi kizunguzungu ninaposimama.
+
+ENGLISH TRANSLATION
+I have had a headache since yesterday. I also have a fever and I feel dizzy when I stand up.
+
+
+============================================================
+(.venv) johanmullern-aspegren@M-L193CDXQJQ demo1_interview % ./.venv/bin/python3 main.py --text "Nina maumivu ya kichwa tangu jana. Pia nina homa na ninahisi kizunguzungu ninaposimama."
+MODEL = "medgemma1.5:latest"
+============================================================
+
+PATIENT STATEMENT
+Nina maumivu ya kichwa tangu jana. Pia nina homa na ninahisi kizunguzungu ninaposimama.
+
+ENGLISH TRANSLATION
+thought
+1.  **Identify the core message:** The patient is experiencing headache since yesterday, fever, and dizziness upon standing.
+
+2.  **Translate each phrase:**
+    *   "Nina maumivu ya kichwa tangu jana." -> "I have had a headache since yesterday." (or "My head hurts since yesterday.")
+    *   "Pia nina homa" -> "I also have a fever." (or "I also have a fever.")
+    *   "na ninahisi kizunguzungu ninaposimama." -> "and I feel dizzy when I stand up." (or "and I get dizzy when I stand up.")
+
+3.  **Combine the translated phrases into natural English:** "I have had a headache since yesterday. I also have a fever and I feel dizzy when I stand up."
+
+4.  **Simplify for clarity (as requested):** The original translation is already quite clear. No further simplification seems necessary unless aiming for extremely basic language, which wasn't explicitly asked for beyond "clear, simple English".
+
+5.  **Final Output:** "I have had a headache since yesterday. I also have a fever and I feel dizzy when I stand up."I have had a headache since yesterday. I also have a fever and I feel dizzy when I stand up.
+
+
+
+&&&&&&&&&&& BAD INPUT %%%%%%%%%
+
+============================================================
+(.venv) johanmullern-aspegren@M-L193CDXQJQ demo1_interview % # The Portuguese-cascade transcript through both models
+./.venv/bin/python3 main.py --text "Nina maumivo ya quichua tango gana Pia nina roma na nina risi ki zungu zungu nina posi mama"
+zsh: command not found: #
+MODEL = "medgemma1.5:latest"
+============================================================
+
+out: Nina has ten years of language experience. Pia also has many mothers.
+
+
+============================================================
+(.venv) johanmullern-aspegren@M-L193CDXQJQ demo1_interview % # The Portuguese-cascade transcript through both models
+./.venv/bin/python3 main.py --text "Nina maumivo ya quichua tango gana Pia nina roma na nina risi ki zungu zungu nina posi mama"
+MODEL = "gemma4:e2b"
+============================================================
+
+PATIENT STATEMENT
+Nina maumivo ya quichua tango gana Pia nina roma na nina risi ki zungu zungu nina posi mama
+
+ENGLISH TRANSLATION
+I have pain from [unclear reference]. I also have [symptom]. My head/neck area is very throbbing/painful. I have mother.
+

@@ -17,7 +17,9 @@ same code - only the CLI flags change.
 ## Setup
 
 ```bash
+cd demo2_rag
 python3 -m venv .venv
+source .venv/bin/activate
 ./.venv/bin/pip install -r requirements.txt
 ollama pull nomic-embed-text
 ```
