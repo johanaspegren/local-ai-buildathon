@@ -21,3 +21,5 @@ __pycache__/
 
 # RAG demo run logs
 demo2_rag/logs/
+
+Modelfile

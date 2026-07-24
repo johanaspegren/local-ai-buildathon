@@ -129,15 +129,19 @@ def load_qa_corpus(path: str) -> list[dict]:
 
     Each pair becomes one chunk. We embed "question + answer" together
     (so the question phrasing helps retrieval find the right pair) but
-    only the answer text is shown as the retrieved context. This is the
-    "curated" side of the demo: no chunking happens at all, because a
-    human already decided what a self-contained unit of knowledge is.
+    only the answer text is shown to the LLM as the retrieved context.
+    The full question+answer is kept on the chunk as "display_text" so
+    the console/log can show a human auditor everything the curator
+    wrote, not just what the model saw. This is the "curated" side of
+    the demo: no chunking happens at all, because a human already
+    decided what a self-contained unit of knowledge is.
     """
     pairs = json.loads(Path(path).read_text())
     return [
         {
             "text": pair["answer"],
             "embed_text": f"{pair['question']} {pair['answer']}",
+            "display_text": f"Q: {pair['question']}\nA: {pair['answer']}",
             "source": f"Q&A #{i + 1}",
         }
         for i, pair in enumerate(pairs)
@@ -200,29 +204,36 @@ def build_index(args: argparse.Namespace) -> list[dict]:
     return embed_chunks(chunks)
 
 
-def retrieve(question: str, chunks: list[dict], top_k: int = TOP_K) -> list[dict]:
-    """Find the chunks most relevant to the question.
+def retrieve(question: str, chunks: list[dict], top_k: int = TOP_K) -> tuple[list[dict], dict]:
+    """Find the chunks most relevant to the question, with phase timings.
 
     Cosine similarity between the question's embedding and every chunk's
     embedding - simple linear scan, which is entirely fine for a few
     hundred chunks. A real vector database earns its place at a much
     larger scale than a workshop demo.
 
-    Each returned chunk carries a "score" field so callers can display
-    and log the similarity that got it picked. The scores tell you a lot
-    about retrieval confidence: a top-1 of 0.75 with a top-3 of 0.72
-    means "the model isn't sure which of these is best," which is
-    exactly the situation where naive chunking hurts most.
+    Returns (retrieved_chunks, timings) where timings breaks down where
+    the seconds went: embedding the question (an Ollama call) vs the
+    pure-Python cosine scan. Useful for judging whether it's worth
+    reaching for a vector database yet (spoiler: at a few hundred
+    chunks, the embed call dominates and the scan is negligible).
     """
+    t0 = time.time()
     response = ollama.embed(model=EMBED_MODEL, input=question, keep_alive=KEEP_ALIVE)
     question_vector = np.array(response["embeddings"][0])
+    t_embed = time.time() - t0
 
     def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
+    t1 = time.time()
     scored = [(cosine_similarity(question_vector, c["embedding"]), c) for c in chunks]
     scored.sort(key=lambda pair: pair[0], reverse=True)
-    return [{**chunk, "score": score} for score, chunk in scored[:top_k]]
+    t_scan = time.time() - t1
+
+    retrieved = [{**chunk, "score": score} for score, chunk in scored[:top_k]]
+    timings = {"embed_question_s": t_embed, "scan_s": t_scan, "num_chunks": len(chunks)}
+    return retrieved, timings
 
 
 def open_log(args: argparse.Namespace) -> Path:
@@ -272,25 +283,41 @@ def log_interaction(record: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
-def answer_question(question: str, retrieved_chunks: list[dict]) -> str:
-    """Answer using only the retrieved text, with citations.
+def answer_question(question: str, retrieved_chunks: list[dict]) -> tuple[str, dict]:
+    """Answer using only the retrieved text, with citations, plus timings.
 
     The system prompt is explicit about the two failure modes we want to
     avoid: making things up, and citing sources that weren't actually
     used. stream=True prints each piece of the answer as it's generated
     instead of waiting for the whole response.
+
+    Returns (answer_text, timings). The final streamed message from
+    Ollama carries built-in timing counters we surface here:
+      - prompt_eval_count / prompt_eval_duration: how long the model
+        spent digesting the prompt (system prompt + retrieved chunks +
+        question) before generating anything. Dominated by prompt length
+        - bigger chunks or higher top_k grow this.
+      - eval_count / eval_duration: generation itself, one token at a
+        time. Divide to get tokens/second, the number to optimise if the
+        answer feels slow to *stream*.
+      - load_duration: time to bring the model into memory. Zero after
+        the first call (assuming keep_alive holds it there).
     """
     context = "\n\n".join(
         f"[{c['source']}]\n{c['text']}" for c in retrieved_chunks
     )
     system_prompt = """You are a clinical reference assistant. Answer the
 question using ONLY the provided document excerpts below. Cite the
-source label(s) (e.g. "page 3" or "Q&A #7") you used. If the excerpts
-don't contain the answer, say so plainly instead of guessing.
+source label(s) (e.g. "page 3" or "Q&A #7") you used. If an excerpt
+includes a WHO grade in parentheses (e.g. "(WHO: Strong Recommendation,
+moderate-quality evidence.)"), include that grade verbatim in your
+answer so the reader can judge how confident the guideline is. If the
+excerpts don't contain the answer, say so plainly instead of guessing.
 
 Document excerpts:
 """ + context
 
+    t0 = time.time()
     stream = ollama.chat(
         model=CHAT_MODEL,
         messages=[
@@ -302,12 +329,35 @@ Document excerpts:
     )
 
     full_answer = ""
+    final_chunk = None
     for chunk in stream:
         piece = chunk["message"]["content"]
         print(piece, end="", flush=True)
         full_answer += piece
+        final_chunk = chunk
     print()
-    return full_answer.strip()
+
+    wall_s = time.time() - t0
+    # Ollama reports durations in nanoseconds. Missing fields (e.g. if
+    # the server is older) default to 0 rather than crashing the demo.
+    def ns_to_s(ns) -> float:
+        return (ns or 0) / 1e9
+    prompt_tokens = (final_chunk or {}).get("prompt_eval_count", 0)
+    prompt_s = ns_to_s((final_chunk or {}).get("prompt_eval_duration"))
+    gen_tokens = (final_chunk or {}).get("eval_count", 0)
+    gen_s = ns_to_s((final_chunk or {}).get("eval_duration"))
+    load_s = ns_to_s((final_chunk or {}).get("load_duration"))
+    timings = {
+        "wall_s": wall_s,
+        "load_s": load_s,
+        "prompt_eval_tokens": prompt_tokens,
+        "prompt_eval_s": prompt_s,
+        "prompt_tokens_per_s": prompt_tokens / prompt_s if prompt_s else None,
+        "gen_tokens": gen_tokens,
+        "gen_s": gen_s,
+        "gen_tokens_per_s": gen_tokens / gen_s if gen_s else None,
+    }
+    return full_answer.strip(), timings
 
 
 def run_single_question(question: str, chunks: list[dict]) -> None:
@@ -315,14 +365,41 @@ def run_single_question(question: str, chunks: list[dict]) -> None:
     print("QUESTION")
     print(question)
 
-    retrieved = retrieve(question, chunks)
+    retrieved, retrieval_t = retrieve(question, chunks)
     print("\nRETRIEVED CHUNKS")
     for chunk in retrieved:
-        preview = chunk["text"][:80].replace("\n", " ")
-        print(f"  [{chunk['source']}] score={chunk['score']:.3f}  {preview}...")
+        print(f"  [{chunk['source']}] score={chunk['score']:.3f}")
+        # Indent the chunk body two spaces so it's visually nested under
+        # the source/score header and easy to skim, but show the full
+        # text - the whole point of surfacing it is to let a human
+        # audit exactly what the curator (or naive chunker) put here.
+        # For Q&A corpora that's the full "Q: ... / A: ..." pair; for
+        # PDF corpora it's the raw chunk that will go to the LLM.
+        body = chunk.get("display_text", chunk["text"])
+        for line in body.splitlines() or [""]:
+            print(f"    {line}")
+        print()
 
     print("\nANSWER")
-    answer = answer_question(question, retrieved)
+    answer, gen_t = answer_question(question, retrieved)
+
+    # Compact timing summary. Rule of thumb for reading it:
+    # - embed_question is one Ollama call to nomic-embed; usually tens of ms.
+    # - scan is pure Python over ~all chunks; sub-ms unless corpus is huge.
+    # - prompt_eval scales with retrieved-context length; the number to
+    #   watch when you change chunk_size / top_k / num_ctx.
+    # - gen tokens/s is the "does streaming feel snappy" number.
+    print("\nTIMING")
+    print(f"  retrieval:  embed={retrieval_t['embed_question_s']*1000:.0f}ms  "
+          f"scan={retrieval_t['scan_s']*1000:.1f}ms  "
+          f"(over {retrieval_t['num_chunks']} chunks)")
+    print(f"  generation: wall={gen_t['wall_s']:.1f}s"
+          + (f"  prompt={gen_t['prompt_eval_tokens']} tok in {gen_t['prompt_eval_s']:.1f}s"
+             f" ({gen_t['prompt_tokens_per_s']:.0f} tok/s)" if gen_t['prompt_tokens_per_s'] else "")
+          + (f"  gen={gen_t['gen_tokens']} tok in {gen_t['gen_s']:.1f}s"
+             f" ({gen_t['gen_tokens_per_s']:.1f} tok/s)" if gen_t['gen_tokens_per_s'] else ""))
+    if gen_t["load_s"] > 0.05:
+        print(f"  (model load: {gen_t['load_s']:.1f}s - first call after idle)")
     print("=" * 60)
 
     log_interaction({
@@ -334,6 +411,7 @@ def run_single_question(question: str, chunks: list[dict]) -> None:
             for c in retrieved
         ],
         "answer": answer,
+        "timings": {**retrieval_t, **gen_t},
     })
 
 
@@ -372,8 +450,10 @@ def run_question_suite(questions: list[dict], chunks: list[dict]) -> None:
     print(f"{'ID':<4} {'Trap':<5} {'Result':<20} Question")
     print("-" * 78)
     passes = 0
+    total_retrieval_s = 0.0
     for q in questions:
-        retrieved = retrieve(q["question"], chunks)
+        retrieved, retrieval_t = retrieve(q["question"], chunks)
+        total_retrieval_s += retrieval_t["embed_question_s"] + retrieval_t["scan_s"]
         result = score_retrieval(retrieved, q["expected_keywords"])
         if result == "PASS":
             passes += 1
@@ -392,9 +472,12 @@ def run_question_suite(questions: list[dict], chunks: list[dict]) -> None:
                 {"source": c["source"], "score": c["score"], "text": c["text"]}
                 for c in retrieved
             ],
+            "timings": retrieval_t,
         })
     print("-" * 78)
-    print(f"{passes}/{len(questions)} passed")
+    print(f"{passes}/{len(questions)} passed  "
+          f"(retrieval total: {total_retrieval_s:.1f}s, "
+          f"avg {total_retrieval_s / len(questions) * 1000:.0f}ms/q)")
     print("=" * 78)
 
 
@@ -416,8 +499,28 @@ def parse_args() -> argparse.Namespace:
                         help="Character overlap between consecutive chunks (default: %(default)s)")
 
     parser.add_argument("--questions", help="Path to a Python file exporting a QUESTIONS list; runs a scored batch and exits (non-interactive)")
+    parser.add_argument("--show-chunks", action="store_true",
+                        help="After indexing, dump every chunk to the console. Great for a live demo of what naive chunking actually produces (mid-word splits, orphaned fragments) vs a curated corpus.")
 
     return parser.parse_args()
+
+
+def dump_chunks(chunks: list[dict]) -> None:
+    """Print every chunk in the corpus with its source label and full text.
+
+    On a naive-chunked PDF this is where the demo lands its punch: the
+    audience can literally read the ...oxytoc | in-ergometrine... split
+    in the wild, without having to trust the trap-question narration.
+    """
+    print("=" * 78)
+    print(f"ALL {len(chunks)} INDEXED CHUNKS")
+    print("=" * 78)
+    for i, chunk in enumerate(chunks, 1):
+        print(f"\n--- chunk {i}/{len(chunks)}  [{chunk['source']}] ---")
+        body = chunk.get("display_text", chunk["text"])
+        for line in body.splitlines() or [""]:
+            print(f"  {line}")
+    print("\n" + "=" * 78 + "\n")
 
 
 def interactive_loop(chunks: list[dict]) -> None:
@@ -446,6 +549,9 @@ if __name__ == "__main__":
 
     document_chunks = build_index(args)
     print(f"Indexed {len(document_chunks)} chunks.\n")
+
+    if args.show_chunks:
+        dump_chunks(document_chunks)
 
     if args.questions:
         run_question_suite(load_questions(args.questions), document_chunks)
