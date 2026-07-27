@@ -27,8 +27,8 @@ to quantize well), this pipeline:
 2. Trains a MobileNetV2 transfer-learning classifier on those crops
    (`train.py`).
 3. Quantizes it to a ~1-3 MB fully int8 `.tflite` file (`convert_to_tflite.py`).
-4. Runs it on the Pi with a small script that only needs `tflite-runtime`,
-   Pillow, and numpy (`infer_pi.py`).
+4. Runs it on the Pi with a small script that works with LiteRT or
+   TensorFlow Lite runtimes, plus Pillow and numpy (`infer_pi.py`).
 
 **Assumption to verify:** class ids `0/1/2` are mapped to `degree_1/2/3` in
 `data_prep.py`'s `CLASS_NAMES`. This is the standard convention for a 3-class
@@ -134,7 +134,12 @@ On the Pi:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-pi.txt
-pip install tflite-runtime   # see requirements-pi.txt for fallbacks
+
+# If the package install is picky on your Pi/Python combo, try one of:
+# pip install ai-edge-litert
+# pip install tflite-runtime
+# sudo apt install python3-tflite-runtime
+# pip install tensorflow-cpu
 
 python3 infer_pi.py path/to/photo.jpg --model burn_classifier.tflite --labels labels.txt
 ```

@@ -1,6 +1,7 @@
 """
-Raspberry Pi inference script. Only needs tflite-runtime + Pillow + numpy
-(see requirements-pi.txt) -- no full TensorFlow install required.
+Raspberry Pi inference script. Works with LiteRT or TensorFlow Lite runtimes
+plus Pillow and numpy (see requirements-pi.txt) -- no full TensorFlow install
+is required.
 
 Usage on the Pi:
     python3 infer_pi.py path/to/photo.jpg
@@ -19,11 +20,23 @@ import numpy as np
 from PIL import Image
 
 try:
-    from tflite_runtime.interpreter import Interpreter
+    from ai_edge_litert.interpreter import Interpreter
 except ImportError:
-    # Falls back to full TensorFlow's bundled interpreter, useful when testing
-    # this script on a dev machine that has TensorFlow but not tflite-runtime.
-    from tensorflow.lite.python.interpreter import Interpreter
+    try:
+        from tflite_runtime.interpreter import Interpreter
+    except ImportError:
+        try:
+            # Falls back to the bundled interpreter from TensorFlow, useful for
+            # development machines that have TensorFlow installed but not the
+            # smaller LiteRT/tflite-runtime packages.
+            from tensorflow.lite.python.interpreter import Interpreter  # type: ignore
+        except ImportError as exc:
+            raise SystemExit(
+                "Unable to import a TensorFlow Lite runtime. Install one of:\n"
+                "  pip install ai-edge-litert\n"
+                "  pip install tflite-runtime\n"
+                "  pip install tensorflow-cpu"
+            ) from exc
 
 
 def load_labels(labels_path: Path) -> list[str]:
