@@ -91,6 +91,26 @@ built from the same per-degree `BURN_PROFILES`, so it differs by predicted
 degree too, not just the LLM path. This fallback path has been tested; the
 live-Ollama path should be tried on the Pi.
 
+### Pathway 2: MedGemma zero-shot (`infer_medgemma.py`)
+
+A second, independent script takes a completely different approach: instead
+of the TFLite classifier + NHS-grounded LLM above, it shows the photo
+directly to [MedGemma](https://ollama.com/library/medgemma) (also served
+locally by Ollama) and asks it, unaided, to both classify the burn and
+recommend a treatment -- no TFLite prediction, no NHS guidance text, no
+system prompt beyond the bare task. MedGemma's vision encoder is pretrained
+on de-identified medical images including dermatology specifically, so it's
+a meaningful point of comparison against pathway 1, not just "a bigger
+model."
+
+This is a genuinely separate, simpler pathway (no shared code with
+`nhs_guidance.py`/`treatment_recommender.py`), useful for comparing "one
+small dedicated classifier + hand-grounded LLM" against "one general medical
+multimodal model, zero-shot" on the same photos. It also has *fewer* safety
+rails than pathway 1 -- there's no forced red-flag checklist and no
+human-authored NHS grounding, so treat its output with more scepticism, not
+less.
+
 ## Current status
 
 The full pipeline has already been run once end-to-end on this machine and
@@ -167,7 +187,7 @@ This is what actually goes on the Pi.
 
 ## 5. Deploy to the Raspberry Pi
 
-Copy these files to the Pi (e.g. via `scp`):
+Copy these files to the Pi (e.g. via `scp`) for pathway 1:
 
 ```
 models/burn_classifier.tflite
@@ -177,6 +197,10 @@ nhs_guidance.py
 treatment_recommender.py
 requirements-pi.txt
 ```
+
+(`infer_medgemma.py`, for pathway 2 in step 7 below, is a separate,
+self-contained script -- copy it over too if you want to try that pathway.
+It needs no other project files, just Ollama + the `medgemma` model.)
 
 On the Pi:
 
@@ -250,6 +274,42 @@ Pi CPU, depending on model/Pi. Both are single-shot, on-demand operations
 (no live camera feed / real-time requirement), so this is fine for "take a
 photo, get a classification and a recommendation."
 
+## 7. Try pathway 2: MedGemma zero-shot
+
+```bash
+ollama pull medgemma:4b     # ~3.3 GB
+
+python3 infer_medgemma.py path/to/photo.jpg
+```
+
+**Hardware caveat:** `medgemma:4b` is a ~3.3 GB model file. On a **4GB Pi**
+this is genuinely tight -- there may not be enough free RAM left for
+inference on top of the OS and the model weights themselves, and it could be
+slow or fail outright. This hasn't been tested on real Pi hardware yet. If
+it doesn't run well on a 4GB Pi, options are: try it on an 8GB Pi, close
+other processes / don't run it alongside `llama3.2:1b` at the same time, or
+treat this pathway as a "test on a beefier machine first" comparison rather
+than something you rely on at the edge. (`medgemma:27b`, 17GB, is not a
+realistic option on a Pi at all.)
+
+Output looks like:
+
+```
+Sending photo.jpg to medgemma:4b via Ollama at http://localhost:11434 ...
+(No classifier output, no NHS guidance, no other context is being given to the model.)
+
+============================================================
+MedGemma raw output (medgemma:4b, unaided -- image only)
+============================================================
+1) Classification: ...
+2) Recommended treatment: ...
+
+Reminder: this is an experimental, unvalidated model output with no
+human-authored safety checklist behind it (unlike infer_pi.py's NHS-grounded
+pathway). Not a medical diagnosis -- contact NHS 111 or a healthcare
+professional for any real burn.
+```
+
 ## Files
 
 | File | Runs on | Purpose |
@@ -257,9 +317,10 @@ photo, get a classification and a recommendation."
 | `data_prep.py` | PC | YOLO annotations -> cropped classification dataset |
 | `train.py` | PC | Trains MobileNetV2 classifier |
 | `convert_to_tflite.py` | PC | Quantizes to int8 `.tflite` |
-| `infer_pi.py` | **Pi** | Loads `.tflite` + labels, classifies one image, prints recommendation |
+| `infer_pi.py` | **Pi** | Pathway 1: loads `.tflite` + labels, classifies one image, prints recommendation |
 | `nhs_guidance.py` | **Pi** | Paraphrased NHS burns guidance + source citation |
 | `treatment_recommender.py` | **Pi** | Prompts local Ollama LLM with the guidance; has a no-LLM fallback |
+| `infer_medgemma.py` | **Pi** | Pathway 2: sends the raw photo to local MedGemma (via Ollama) for a zero-shot classification + recommendation |
 | `requirements-train.txt` | PC | TensorFlow training deps |
 | `requirements-pi.txt` | **Pi** | Minimal inference deps |
 
