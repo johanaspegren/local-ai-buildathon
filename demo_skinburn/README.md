@@ -52,25 +52,44 @@ heavier lift on a Pi; ask if you want that version built instead.
 After classifying, `infer_pi.py` now also generates a first-aid/treatment
 recommendation by sending the predicted label to a small **local** LLM
 (served by [Ollama](https://ollama.com), nothing leaves the device), grounded
-in paraphrased NHS "Burns and scalds" guidance (`nhs_guidance.py`; full
-answer-generation logic in `treatment_recommender.py`).
+in paraphrased NHS guidance (`nhs_guidance.py`; full answer-generation logic
+in `treatment_recommender.py`).
 
-Important design point, discovered by actually reading the current NHS
-guidance page rather than assuming: **the NHS does not classify burns by
-"degree"**. Its own advice on when to call 999/go to A&E is based on things a
-photo classifier cannot judge -- size, depth, exact location (face/genitals/
-bottom), and cause (chemical/electrical). So every recommendation this tool
-generates always includes those emergency red-flag criteria in full,
-regardless of the predicted degree, plus an explicit statement that the
-degree label is an experimental, unvalidated prediction and not a clinical
-fact (`CLASSIFIER_CAVEAT` in `nhs_guidance.py`). The predicted degree only
-provides soft context (`DEGREE_NOTES`) alongside that, e.g. nudging towards
-"get it checked by NHS 111/a GP" for `degree_2`+.
+This is grounded in three real NHS-family sources (see the docstring in
+`nhs_guidance.py` for full citations/dates): the NHS.uk "Burns and scalds"
+page, NHS inform (NHS 24, Scotland)'s equivalent page, and a University
+Hospitals Plymouth NHS Trust patient information leaflet.
+
+**Two important, source-driven design points:**
+
+1. The NHS.uk and NHS inform pages do **not** classify burns by "degree".
+   Their advice on when to call 999/go to A&E is based on things a photo
+   classifier cannot judge -- size, depth, exact location (face/genitals/
+   bottom), and cause (chemical/electrical/white-or-charred skin/paradoxically
+   little pain). So every recommendation always includes those emergency
+   red-flag criteria in full, regardless of the predicted degree
+   (`EMERGENCY_RED_FLAGS` in `nhs_guidance.py`), plus an explicit statement
+   that the degree label is an experimental, unvalidated prediction and not
+   a clinical fact (`CLASSIFIER_CAVEAT`).
+
+2. The Plymouth Trust leaflet *does* describe what "degree_1/2/3" are
+   conventional shorthand for -- superficial / partial-thickness /
+   full-thickness -- including how each looks, feels, and heals differently.
+   That's used to build `BURN_PROFILES` in `nhs_guidance.py`: a genuinely
+   different description, home-care do/don't list, recovery outlook, and
+   escalation note per predicted degree (e.g. degree_3's home care is "get
+   urgent professional care", not a self-care checklist). Previously this
+   project only varied a single context sentence per degree while reusing
+   identical guidance underneath -- this was called out as too thin and has
+   been reworked so degree_1 vs degree_3 recommendations actually read
+   substantively differently, not just in tone.
 
 If Ollama isn't installed/running, `infer_pi.py` doesn't crash or skip safety
-info -- it falls back to printing the raw NHS guidance directly (see
-`_fallback_text()` in `treatment_recommender.py`). This fallback path has
-been tested; the live-Ollama path should be tried on the Pi.
+info -- it falls back to printing the structured NHS guidance directly (see
+`_fallback_text()` in `treatment_recommender.py`), and that fallback text is
+built from the same per-degree `BURN_PROFILES`, so it differs by predicted
+degree too, not just the LLM path. This fallback path has been tested; the
+live-Ollama path should be tried on the Pi.
 
 ## Current status
 
@@ -213,13 +232,15 @@ All classes:
 ============================================================
 Treatment recommendation (NHS-grounded, local LLM)
 ============================================================
-1. Immediate first aid
+1. What this burn type usually means (partial-thickness burn)
   ...
-2. Seek urgent medical help now if
+2. Immediate first aid
   ...
-3. Home care while it heals
+3. Seek urgent medical help now if
   ...
-4. Important note
+4. Home care and recovery outlook
+  ...
+5. Important note
   This is not a medical diagnosis...
 ```
 
