@@ -78,6 +78,10 @@ def main():
                          help=f"Ollama model tag to use (default: {treatment_recommender.DEFAULT_MODEL})")
     parser.add_argument("--ollama-host", default=treatment_recommender.DEFAULT_OLLAMA_HOST,
                          help=f"Ollama API base URL (default: {treatment_recommender.DEFAULT_OLLAMA_HOST})")
+    parser.add_argument("--llm-timeout", type=float, default=treatment_recommender.DEFAULT_TIMEOUT,
+                         help=f"Seconds to wait for the LLM response before falling back to raw NHS "
+                              f"guidance (default: {treatment_recommender.DEFAULT_TIMEOUT:.0f}s -- raise "
+                              f"this if you're seeing timeouts on slower Pi hardware)")
     args = parser.parse_args()
 
     image_path = Path(args.image)
@@ -116,6 +120,7 @@ def main():
         print("=" * 60)
         recommendation = treatment_recommender.get_recommendation(
             top_label, top_confidence, model=args.ollama_model, host=args.ollama_host,
+            timeout=args.llm_timeout,
         )
         print(recommendation)
 

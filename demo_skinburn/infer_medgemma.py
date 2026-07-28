@@ -50,6 +50,17 @@ from urllib.error import URLError
 
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 DEFAULT_MODEL = "medgemma"
+# A 4B multimodal model doing image encoding on Pi CPU (and, on a 4GB Pi,
+# likely under real RAM pressure -- see the README hardware caveat) can be
+# far slower than a dev PC. 120s was too tight in practice (every call timed
+# out on real Pi hardware), so this is deliberately generous. Override with
+# --timeout if it's still not enough.
+DEFAULT_TIMEOUT = 300.0
+# Hard cap on generated tokens so a single call can't run away indefinitely.
+MAX_OUTPUT_TOKENS = 400
+# Keep the model loaded in memory between calls -- reloading a 3.3GB model
+# from disk on every invocation is itself slow on a Pi.
+KEEP_ALIVE = "10m"
 
 PROMPT = (
     "You are shown a photo of a burn injury. "
@@ -66,13 +77,14 @@ def encode_image(image_path: Path) -> str:
 
 def get_classification_and_recommendation(image_path: Path, model: str = DEFAULT_MODEL,
                                            host: str = DEFAULT_OLLAMA_HOST,
-                                           timeout: float = 120.0) -> str:
+                                           timeout: float = DEFAULT_TIMEOUT) -> str:
     payload = {
         "model": model,
         "prompt": PROMPT,
         "images": [encode_image(image_path)],
         "stream": False,
-        "options": {"temperature": 0.2},
+        "keep_alive": KEEP_ALIVE,
+        "options": {"temperature": 0.2, "num_predict": MAX_OUTPUT_TOKENS},
     }
     req = urllib_request.Request(
         f"{host}/api/generate",
@@ -95,6 +107,9 @@ def main():
                          help=f"Ollama model tag to use (default: {DEFAULT_MODEL})")
     parser.add_argument("--host", default=DEFAULT_OLLAMA_HOST,
                          help=f"Ollama API base URL (default: {DEFAULT_OLLAMA_HOST})")
+    parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT,
+                         help=f"Seconds to wait for a response (default: {DEFAULT_TIMEOUT:.0f}s -- "
+                              f"raise this if you're seeing timeouts on slower/lower-RAM Pi hardware)")
     args = parser.parse_args()
 
     image_path = Path(args.image)
@@ -105,10 +120,20 @@ def main():
     print("(No classifier output, no NHS guidance, no other context is being given to the model.)\n")
 
     try:
-        result = get_classification_and_recommendation(image_path, model=args.model, host=args.host)
+        result = get_classification_and_recommendation(
+            image_path, model=args.model, host=args.host, timeout=args.timeout,
+        )
     except (URLError, TimeoutError, ValueError, OSError, json.JSONDecodeError) as e:
+        timeout_hint = ""
+        if isinstance(e, TimeoutError) or "timed out" in str(e).lower():
+            timeout_hint = (
+                f"\nGeneration took longer than {args.timeout:.0f}s. On a Pi this usually "
+                f"means the model is CPU-bound and/or RAM is under pressure -- check `free -h` "
+                f"and `ollama ps` for swapping (medgemma:4b is ~3.3GB, tight on a 4GB Pi). "
+                f"Try a larger --timeout, or see the README troubleshooting section."
+            )
         sys.exit(
-            f"Could not get a response from Ollama ({e}).\n"
+            f"Could not get a response from Ollama ({e}).{timeout_hint}\n"
             f"Make sure Ollama is running and the model is pulled:\n"
             f"  ollama pull {args.model}"
         )

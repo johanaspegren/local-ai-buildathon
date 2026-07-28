@@ -320,6 +320,45 @@ pathway). Not a medical diagnosis -- contact NHS 111 or a healthcare
 professional for any real burn.
 ```
 
+## Troubleshooting: local LLM timeouts on the Pi
+
+Both LLM calls (pathway 1's `llama3.2:1b` and pathway 2's `medgemma`) were
+originally given fairly tight timeouts (60s / 120s) based on dev-machine
+speed, and in practice **every call timed out on real Pi hardware** -- CPU-only
+generation for even a small model is much slower on a Pi than on a laptop,
+and that gets worse fast if RAM is under pressure. Both scripts now:
+
+- Use much larger default timeouts (`treatment_recommender.DEFAULT_TIMEOUT` =
+  180s, `infer_medgemma.DEFAULT_TIMEOUT` = 300s), overridable per-run with
+  `--llm-timeout` (`infer_pi.py`) / `--timeout` (`infer_medgemma.py`).
+- Cap generation length (`num_predict`) so a single call can't run away well
+  past the timeout budget.
+- Set `keep_alive` so Ollama keeps the model loaded in RAM between calls,
+  instead of reloading it from disk (slow on a Pi) on every single run.
+
+If you're still hitting timeouts, work through these in order:
+
+1. **Measure raw model speed directly**, outside our scripts, to get a
+   baseline: `time ollama run llama3.2:1b "Say hello in one sentence."` (or
+   `medgemma` with an image via the CLI). If this itself takes a long time,
+   the bottleneck is the model/hardware, not our code.
+2. **Check for RAM pressure / swapping**: `free -h` and `ollama ps` while a
+   request is running. This is the most likely cause for `medgemma` on a
+   4GB Pi specifically (~3.3GB model file leaves very little headroom) --
+   see the hardware caveat in step 7 above.
+3. **Don't run both pathways' models loaded at once** on a low-RAM Pi --
+   e.g. avoid testing pathway 1 and pathway 2 back-to-back without letting
+   the first model's `keep_alive` window expire, since Ollama then has two
+   models competing for the same limited RAM.
+4. **Raise the timeout further** if the model is just slow but does
+   eventually respond -- `--llm-timeout 400` / `--timeout 600`, etc.
+5. If it's consistently too slow to be usable, consider a smaller model
+   (there isn't a smaller official MedGemma; for pathway 1 you could try
+   `ollama pull qwen2.5:0.5b` and pass `--ollama-model qwen2.5:0.5b`) or
+   accept that pathway 2 in particular may not be practical on a 4GB Pi --
+   pathway 1's classification step (TFLite, no LLM) still works fine on its
+   own with `--no-recommend`.
+
 ## Files
 
 | File | Runs on | Purpose |
