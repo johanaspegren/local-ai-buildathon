@@ -15,12 +15,21 @@ so it's a meaningful comparison point against pathway 1.
 
 Setup (on the Raspberry Pi):
     curl -fsSL https://ollama.com/install.sh | sh
-    ollama pull medgemma:4b   # ~3.3 GB -- see README.md for a hardware caveat
-                              # on a 4GB Pi, this is tight; test before relying on it
+    ollama pull medgemma   # ~3.3 GB, the 4B multimodal variant (medgemma:latest)
+                           # -- see README.md for a hardware caveat on a 4GB Pi
 
 Usage:
     python3 infer_medgemma.py path/to/photo.jpg
-    python3 infer_medgemma.py path/to/photo.jpg --model medgemma:4b --host http://localhost:11434
+    python3 infer_medgemma.py path/to/photo.jpg --model medgemma --host http://localhost:11434
+
+Note on the model tag: `ollama pull medgemma` (no tag) pulls `medgemma:latest`,
+which is the same 3.3GB 4B multimodal model as `medgemma:4b` -- same content,
+different local tag name. DEFAULT_MODEL below is deliberately "medgemma" (not
+"medgemma:4b") to match whichever of those two equivalent pulls you actually
+ran; Ollama treats tags as distinct local references even when they point at
+identical content, so requesting a tag you didn't pull can fail or trigger an
+unwanted network pull. If you pulled with an explicit tag instead, pass
+--model to match it.
 
 Only needs the Python standard library (urllib, base64) -- no extra pip
 dependency, and no TensorFlow/TFLite runtime at all.
@@ -40,7 +49,7 @@ from urllib import request as urllib_request
 from urllib.error import URLError
 
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
-DEFAULT_MODEL = "medgemma:4b"
+DEFAULT_MODEL = "medgemma"
 
 PROMPT = (
     "You are shown a photo of a burn injury. "

@@ -277,29 +277,39 @@ photo, get a classification and a recommendation."
 ## 7. Try pathway 2: MedGemma zero-shot
 
 ```bash
-ollama pull medgemma:4b     # ~3.3 GB
+ollama pull medgemma     # ~3.3 GB -- pulls medgemma:latest, the 4B multimodal variant
 
 python3 infer_medgemma.py path/to/photo.jpg
 ```
 
-**Hardware caveat:** `medgemma:4b` is a ~3.3 GB model file. On a **4GB Pi**
-this is genuinely tight -- there may not be enough free RAM left for
-inference on top of the OS and the model weights themselves, and it could be
-slow or fail outright. This hasn't been tested on real Pi hardware yet. If
-it doesn't run well on a 4GB Pi, options are: try it on an 8GB Pi, close
-other processes / don't run it alongside `llama3.2:1b` at the same time, or
-treat this pathway as a "test on a beefier machine first" comparison rather
-than something you rely on at the edge. (`medgemma:27b`, 17GB, is not a
-realistic option on a Pi at all.)
+**Model tag note:** `ollama pull medgemma` (no tag) and `ollama pull medgemma:4b`
+download the same 3.3GB model content, but register it under different local
+tag names (`medgemma:latest` vs `medgemma:4b`) -- Ollama treats these as
+distinct references even though they're identical underneath. `infer_medgemma.py`
+defaults to `--model medgemma` to match a plain `ollama pull medgemma`. If you
+pulled the `:4b` tag explicitly instead, either works from the CLI (`ollama run
+medgemma` or `ollama run medgemma:4b`), but pass `--model medgemma:4b` to this
+script to match whichever tag you actually have locally -- requesting a tag
+you didn't pull can fail, or trigger an unwanted network pull on the Pi.
+
+**Hardware caveat:** the model file is ~3.3 GB. On a **4GB Pi** this is
+genuinely tight -- there may not be enough free RAM left for inference on top
+of the OS and the model weights themselves, and it could be slow or fail
+outright. This hasn't been tested on real Pi hardware yet. If it doesn't run
+well on a 4GB Pi, options are: try it on an 8GB Pi, close other processes /
+don't run it alongside `llama3.2:1b` at the same time, or treat this pathway
+as a "test on a beefier machine first" comparison rather than something you
+rely on at the edge. (`medgemma:27b`, 17GB, is not a realistic option on a Pi
+at all.)
 
 Output looks like:
 
 ```
-Sending photo.jpg to medgemma:4b via Ollama at http://localhost:11434 ...
+Sending photo.jpg to medgemma via Ollama at http://localhost:11434 ...
 (No classifier output, no NHS guidance, no other context is being given to the model.)
 
 ============================================================
-MedGemma raw output (medgemma:4b, unaided -- image only)
+MedGemma raw output (medgemma, unaided -- image only)
 ============================================================
 1) Classification: ...
 2) Recommended treatment: ...
