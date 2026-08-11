@@ -1,0 +1,11 @@
+# Install on the Raspberry Pi (Pi 4 / Pi 5, 32 or 64-bit Raspberry Pi OS).
+#
+# The script now prefers ai-edge-litert first, which is the modern LiteRT
+# package name. If that does not install on your Pi/Python combo, try one of:
+#   1) pip install ai-edge-litert
+#   2) pip install tflite-runtime
+#   3) sudo apt install python3-tflite-runtime
+#   4) pip install tensorflow-cpu
+ai-edge-litert>=1.0.0
+pillow>=10.0
+numpy>=1.26

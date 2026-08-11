@@ -1,0 +1,11 @@
+{
+  "img_size": [
+    160,
+    160
+  ],
+  "class_names": [
+    "degree_1",
+    "degree_2",
+    "degree_3"
+  ]
+}
